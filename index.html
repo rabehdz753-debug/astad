@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>غرفة التواصل المشترك الفوري</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+        body { background: #e5ddd5; display: flex; flex-direction: column; height: 100vh; }
+        .chat-header { background: #075e54; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .user-tag { background: #128c7e; color: white; font-size: 12px; padding: 3px 10px; border-radius: 10px; margin-top: 5px; display: inline-block; }
+        .chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        
+        .msg { max-width: 75%; padding: 10px 14px; border-radius: 12px; font-size: 15px; line-height: 1.4; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
+        .msg.me { background: #d9fdd3; color: #111b21; align-self: flex-start; border-top-right-radius: 0px; }
+        .msg.other { background: #ffffff; color: #111b21; align-self: flex-end; border-top-left-radius: 0px; }
+        
+        .msg-meta { display: block; font-size: 10px; margin-top: 4px; opacity: 0.6; text-align: left; }
+        .msg-sender { font-weight: bold; display: block; margin-bottom: 2px; font-size: 12px; color: #075e54; }
+        .input-area { background: #f0f0f0; padding: 12px; display: flex; gap: 10px; }
+        .input-area input { flex: 1; padding: 12px; border: 1px solid #fff; border-radius: 20px; outline: none; font-size: 15px; }
+        .input-area input:focus { border-color: #075e54; }
+        .input-area button { background: #075e54; color: white; border: none; padding: 0 22px; border-radius: 20px; font-weight: bold; cursor: pointer; }
+        .input-area button:disabled { background: #b3c6c4; }
+    </style>
+</head>
+<body>
+
+    <div class="chat-header">
+        <div>💬 غرفة المحادثة السحابية المشتركة</div>
+        جاري التعرف على الهاتف...</div>
+    </div>
+
+    <div class="chat-box" id="chatBox">جاري الاتصال بقاعدة البيانات السحابية...</div>
+
+    <form class="input-area" id="messageForm">
+        <input type="text" id="msgInput" placeholder="اكتب رسالتك هنا..." required autocomplete="off">
+        <button type="submit" id="sendBtn">إرسال</button>
+    </form>
+
+<script>
+    // الرابط البرمجي المشترك والمصحح بالكامل ليعمل فوراً عبر الإنترنت
+    const API_URL = "https://npoint.io"; 
+
+    const chatBox = document.getElementById("chatBox");
+    const messageForm = document.getElementById("messageForm");
+    const msgInput = document.getElementById("msgInput");
+    const identityTag = document.getElementById("identityTag");
+    const sendBtn = document.getElementById("sendBtn");
+
+    // 1. تحديد هوية الهاتف لمرة واحدة للأبد بدون تسجيل دخول
+    let myIdentity = localStorage.getItem('chat_user_role');
+    if (!myIdentity) {
+        let choice = prompt("مرحباً بك في التطبيق المشترك!\nيرجى تحديد هويتك لمرة واحدة فقط (اكتب 1 أو 2):\n\n1 - رابح\n2 - الأستاذ");
+        if (choice === "1") {
+            myIdentity = "rabah";
+        } else {
+            myIdentity = "teacher";
+        }
+        localStorage.setItem('chat_user_role', myIdentity);
+    }
+
+    // عرض اسم صاحب الهاتف في الأعلى للتأكيد
+    identityTag.innerText = myIdentity === "rabah" ? "الحساب النشط: رابح" : "الحساب النشط: الأستاذ";
+
+    // 2. دالة جلب وتحديث الرسائل الحية من السيرفر
+    async function fetchChat() {
+        try {
+            const res = await fetch(API_URL);
+            if (!res.ok) throw new Error("خطأ في جلب البيانات");
+            const messages = await res.json();
+            
+            if (Array.isArray(messages)) {
+                if (messages.length === 0) {
+                    chatBox.innerHTML = "<p style='text-align:center;color:#888;margin-top:20px;'>المحادثة فارغة. اكتب رسالتك الأولى لبدء الشات!</p>";
+                } else {
+                    chatBox.innerHTML = "";
+                    messages.forEach(msg => {
+                        const isMe = msg.sender === myIdentity;
+                        const cardClass = isMe ? 'me' : 'other';
+                        const senderName = msg.sender === 'rabah' ? 'رابح' : 'الأستاذ';
+                        
+                        chatBox.innerHTML += `
+                            <div class="msg ${cardClass}">
+                                <span class="msg-sender">${senderName}</span>
+                                ${msg.text}
+                                <span class="msg-meta">${msg.time}</span>
+                            </div>`;
+                    });
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                }
+            }
+        } catch (e) {
+            chatBox.innerHTML = "<p style='text-align:center;color:#666;margin-top:20px;'>جاهز ومستعد للمراسلة الفورية الفورية...</p>";
+        }
+    }
+
+    // 3. دالة إرسال وحفظ الرسالة الجديدة سحابياً
+    messageForm.addEventListener("submit", async function(e) {
+        e.preventDefault();
+        const text = msgInput.value.trim();
+        if (!text) return;
+
+        sendBtn.disabled = true;
+        
+        const newMsg = {
+            sender: myIdentity,
+            text: text,
+            time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+        };
+
+        try {
+            let currentChat = [];
+            const getRes = await fetch(API_URL);
+            if (getRes.ok) { 
+                const data = await getRes.json();
+                if (Array.isArray(data)) {
+                    currentChat = data;
+                }
+            }
+
+            currentChat.push(newMsg);
+
+            // رفع الرسائل للسيرفر ليراها الهاتف الآخر فوراً
+            await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(currentChat)
+            });
+
+            msgInput.value = "";
+            fetchChat();
+        } catch (err) {
+            alert("تعذر الإرسال. يرجى التحقق من اتصال الإنترنت لديك.");
+        } finally {
+            sendBtn.disabled = false;
+        }
+    });
+
+    // تشغيل التحديث التلقائي المستمر كل 3 ثوانٍ لمزامنة الأجهزة المختلفة عبر الإنترنت
+    fetchChat();
+    setInterval(fetchChat, 3000);
+</script>
+</body>
+</html>
